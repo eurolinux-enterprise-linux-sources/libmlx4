@@ -1,6 +1,6 @@
 Name: libmlx4
-Version: 1.0.2
-Release: 5%{?dist}
+Version: 1.0.4
+Release: 1%{?dist}
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 Provides: libibverbs-driver.%{_arch}
 Group: System Environment/Libraries
@@ -10,9 +10,6 @@ Source: http://openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
 Source1: libmlx4-modprobe.conf
 Source2: libmlx4-mlx4.conf
 Source3: libmlx4-setup-mlx4.awk
-Patch0: 0004-Add-IBoE-support.patch
-Patch1: 0005-Add-IBoE-UD-VLANs-support.patch
-Patch2: 0006-Align-the-list-of-supported-ConnectX-devices-with-ke.patch
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 Provides: libmlx4-devel = %{version}-%{release}
 BuildRequires: libibverbs-devel > 1.1.4
@@ -36,9 +33,6 @@ application, which may be useful for debugging.
 
 %prep
 %setup -q
-%patch0 -p1 -b .iboe
-%patch1 -p1 -b .vlan
-%patch2 -p1 -b .ids
 
 %build
 %configure --with-valgrind
@@ -70,6 +64,10 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libmlx4.a
 
 %changelog
+* Sun Oct 14 2012 Doug Ledford <dledford@redhat.com> - 1.0.4-1
+- Update to latest upstream version
+- Related: bz756396
+
 * Tue Mar 20 2012 Doug Ledford <dledford@redhat.com> - 1.0.2-5
 - Fix an issue in the modprobe file that could render a machine unbootable
 - Related: bz805129

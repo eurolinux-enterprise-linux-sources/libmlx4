@@ -223,6 +223,8 @@ struct mlx4_qp {
 
 	uint32_t		       *db;
 	struct mlx4_wq			rq;
+
+	uint8_t				link_layer;
 };
 
 struct mlx4_av {
@@ -241,6 +243,8 @@ struct mlx4_av {
 struct mlx4_ah {
 	struct ibv_ah			ibv_ah;
 	struct mlx4_av			av;
+	uint16_t			vlan;
+	uint8_t				mac[6];
 };
 
 static inline unsigned long align(unsigned long val, unsigned long align)
