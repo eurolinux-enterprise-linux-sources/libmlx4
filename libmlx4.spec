@@ -1,20 +1,24 @@
 Name: libmlx4
-Version: 1.0.4
-Release: 1%{?dist}
+Version: 1.0.5
+Release: 4%{?dist}.1
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 Provides: libibverbs-driver.%{_arch}
 Group: System Environment/Libraries
 License: GPLv2 or BSD
-Url: http://openfabrics.org/
-Source: http://openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
+Url: http://www.openfabrics.org/
+Source: http://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
 Source1: libmlx4-modprobe.conf
 Source2: libmlx4-mlx4.conf
-Source3: libmlx4-setup-mlx4.awk
+Source3: libmlx4-setup.sh
+Source4: libmlx4-dracut-check.sh
+Source5: libmlx4-dracut-install.sh
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 Provides: libmlx4-devel = %{version}-%{release}
 BuildRequires: libibverbs-devel > 1.1.4
 BuildRequires: valgrind-devel
 ExcludeArch: s390 s390x
+Requires: dracut
+%global dracutlibdir %{_datadir}/dracut
 
 %description
 libmlx4 provides a device-specific userspace driver for Mellanox
@@ -39,16 +43,15 @@ application, which may be useful for debugging.
 make CFLAGS="$CFLAGS -fno-strict-aliasing" %{?_smp_mflags}
 
 %install
-rm -rf $RPM_BUILD_ROOT
+rm -rf %{buildroot}
 make DESTDIR=%{buildroot} install
-install -D -m 644 %{SOURCE1} ${RPM_BUILD_ROOT}%{_sysconfdir}/modprobe.d/libmlx4.conf
-install -D -m 644 %{SOURCE2} ${RPM_BUILD_ROOT}%{_sysconfdir}/rdma/mlx4.conf
-install -D -m 644 %{SOURCE3} ${RPM_BUILD_ROOT}%{_sysconfdir}/rdma/setup-mlx4.awk
-# remove unpackaged files from the buildroot
-rm -f $RPM_BUILD_ROOT%{_libdir}/*.la $RPM_BUILD_ROOT%{_libdir}/libmlx4.so
-
-%clean
-rm -rf $RPM_BUILD_ROOT
+install -D -m 644 %{SOURCE1} %{buildroot}%{_sysconfdir}/modprobe.d/libmlx4.conf
+install -D -m 644 %{SOURCE2} %{buildroot}%{_sysconfdir}/rdma/mlx4.conf
+install -D -m 755 %{SOURCE3} %{buildroot}%{_libexecdir}/setup-mlx4.sh
+install -D -m 755 %{SOURCE4} %{buildroot}%{dracutlibdir}/modules.d/90-libmlx4/check
+install -D -m 755 %{SOURCE5} %{buildroot}%{dracutlibdir}/modules.d/90-libmlx4/install
+# Remove unpackaged files
+rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 
 %files
 %defattr(-,root,root,-)
@@ -56,7 +59,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_sysconfdir}/libibverbs.d/mlx4.driver
 %{_sysconfdir}/modprobe.d/libmlx4.conf
 %config(noreplace) %{_sysconfdir}/rdma/mlx4.conf
-%{_sysconfdir}/rdma/setup-mlx4.awk
+%{_libexecdir}/setup-mlx4.sh
+%{dracutlibdir}/modules.d/90-libmlx4
 %doc AUTHORS COPYING README
 
 %files static
@@ -64,6 +68,28 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libmlx4.a
 
 %changelog
+* Wed Aug 14 2013 Michal Schmidt <mschmidt@redhat.com> 1.0.5-4.el6.1
+- Fix dracut module for compatibility with RHEL6 version of dracut.
+- Resolves: bz789121
+
+* Mon Aug 12 2013 Michal Schmidt <mschmidt@redhat.com> - 1.0.5-4
+- Add dracut module
+- Fix URL
+
+* Thu Aug 01 2013 Doug Ledford <dledford@redhat.com> - 1.0.5-3
+- Reduce the dependencies of the setup script even further, it no longer
+  needs grep
+
+* Fri Jul 19 2013 Doug Ledford <dledford@redhat.com> - 1.0.5-2
+- The setup script needs to have execute permissions
+
+* Wed Jul 17 2013 Doug Ledford <dledford@redhat.com> - 1.0.5-1
+- Update to latest upstream
+- Drop awk based setup for a bash based setup, making including
+  the setup code on an initramfs easier
+- Modernize spec file
+- Related: bz950915
+
 * Sun Oct 14 2012 Doug Ledford <dledford@redhat.com> - 1.0.4-1
 - Update to latest upstream version
 - Related: bz756396
