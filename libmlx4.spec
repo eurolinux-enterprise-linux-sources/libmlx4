@@ -1,23 +1,28 @@
 Name: libmlx4
-Version: 1.0.5
-Release: 4%{?dist}.1
+Version: 1.0.6
+Release: 6%{?dist}
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 Provides: libibverbs-driver.%{_arch}
 Group: System Environment/Libraries
 License: GPLv2 or BSD
-Url: http://www.openfabrics.org/
-Source: http://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
+Url: https://www.openfabrics.org/
+Source: https://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
 Source1: libmlx4-modprobe.conf
 Source2: libmlx4-mlx4.conf
 Source3: libmlx4-setup.sh
 Source4: libmlx4-dracut-check.sh
 Source5: libmlx4-dracut-install.sh
+Source6: libmlx4-modprobe-2.conf
+Source7: libmlx4-dracut-installkernel
+Patch0: 0001-Add-ibv_query_port-caching-support.patch
+Patch1: 0002-Add-RoCE-IP-based-addressing-support-for-UD-QPs.patch
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 Provides: libmlx4-devel = %{version}-%{release}
-BuildRequires: libibverbs-devel > 1.1.4
+BuildRequires: libibverbs-devel >= 1.1.8-2.el6
 BuildRequires: valgrind-devel
 ExcludeArch: s390 s390x
 Requires: dracut
+Obsoletes: libmlx4-rocee < 1.0.6
 %global dracutlibdir %{_datadir}/dracut
 
 %description
@@ -29,6 +34,7 @@ Summary: Static version of the libmlx4 driver
 Group: System Environment/Libraries
 Provides: %{name}-devel-static = %{version}-%{release}
 Obsoletes: %{name}-devel-static <= 1.0.1-1
+Obsoletes: libmlx4-rocee-static < 1.0.6
 Requires: %{name} = %{version}-%{release}
 
 %description static
@@ -37,6 +43,8 @@ application, which may be useful for debugging.
 
 %prep
 %setup -q
+%patch0 -p1
+%patch1 -p1
 
 %build
 %configure --with-valgrind
@@ -48,8 +56,10 @@ make DESTDIR=%{buildroot} install
 install -D -m 644 %{SOURCE1} %{buildroot}%{_sysconfdir}/modprobe.d/libmlx4.conf
 install -D -m 644 %{SOURCE2} %{buildroot}%{_sysconfdir}/rdma/mlx4.conf
 install -D -m 755 %{SOURCE3} %{buildroot}%{_libexecdir}/setup-mlx4.sh
-install -D -m 755 %{SOURCE4} %{buildroot}%{dracutlibdir}/modules.d/90-libmlx4/check
-install -D -m 755 %{SOURCE5} %{buildroot}%{dracutlibdir}/modules.d/90-libmlx4/install
+install -D -m 755 %{SOURCE4} %{buildroot}%{dracutlibdir}/modules.d/10mlx4/check
+install -D -m 755 %{SOURCE5} %{buildroot}%{dracutlibdir}/modules.d/10mlx4/install
+install -D -m 644 %{SOURCE6} %{buildroot}%{_sysconfdir}/modprobe.d/mlx4.conf
+install -D -m 755 %{SOURCE7} %{buildroot}%{dracutlibdir}/modules.d/10mlx4/installkernel
 # Remove unpackaged files
 rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 
@@ -59,8 +69,9 @@ rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 %{_sysconfdir}/libibverbs.d/mlx4.driver
 %{_sysconfdir}/modprobe.d/libmlx4.conf
 %config(noreplace) %{_sysconfdir}/rdma/mlx4.conf
+%config(noreplace) %{_sysconfdir}/modprobe.d/mlx4.conf
 %{_libexecdir}/setup-mlx4.sh
-%{dracutlibdir}/modules.d/90-libmlx4
+%{dracutlibdir}/modules.d/10mlx4
 %doc AUTHORS COPYING README
 
 %files static
@@ -68,6 +79,35 @@ rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 %{_libdir}/libmlx4.a
 
 %changelog
+* Wed Jul 30 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-6
+- Fix obsoletes tag for sub packages
+- Related: bz1053500
+
+* Thu Jul 24 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-5
+- Add IP based RoCE GID support
+- Resolves: bz1053500
+
+* Wed Jun 18 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-4
+- Another minor fix for the dracut modules
+- Related: bz1059094
+
+* Wed Jun 18 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-3
+- Actually use the right %source macro when installing the new
+  mlx4.conf file this time
+- Related: bz1059094
+
+* Wed Jun 18 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-2
+- Add the modprobe.d/mlx4.conf for user set module options that we
+  don't replace on upgrade
+- Rename the dracut module to just mlx4 instead of -libmlx4 (dracut
+  takes a dash between the number and the name literally)
+- Add obsoletes tag to make us replace libmlx4-rocee
+- Related: bz1059094
+
+* Mon Jun 16 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-1.el6
+- Update to latest upstream release
+- Resolves: bz1059094
+
 * Wed Aug 14 2013 Michal Schmidt <mschmidt@redhat.com> 1.0.5-4.el6.1
 - Fix dracut module for compatibility with RHEL6 version of dracut.
 - Resolves: bz789121

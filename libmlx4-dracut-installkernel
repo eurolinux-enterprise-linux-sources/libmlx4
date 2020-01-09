@@ -1,0 +1,2 @@
+#!/bin/bash
+instmods "=drivers/net/mlx4" mlx4_ib

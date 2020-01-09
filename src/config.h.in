@@ -3,18 +3,6 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
-/* Define to 1 if you have the `ibv_dofork_range' function. */
-#undef HAVE_IBV_DOFORK_RANGE
-
-/* Define to 1 if you have the `ibv_dontfork_range' function. */
-#undef HAVE_IBV_DONTFORK_RANGE
-
-/* libibverbs has raw packet QP support */
-#undef HAVE_IBV_QPT_RAW_PACKET
-
-/* Define to 1 if you have the `ibv_register_driver' function. */
-#undef HAVE_IBV_REGISTER_DRIVER
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 

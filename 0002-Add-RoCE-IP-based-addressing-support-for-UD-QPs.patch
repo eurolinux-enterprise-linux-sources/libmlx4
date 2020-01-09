@@ -1,0 +1,59 @@
+From dcf6eab417b6675a078d7145deb8d8b96fb77e72 Mon Sep 17 00:00:00 2001
+From: Matan Barak <matanb@mellanox.com>
+Date: Sun, 17 Nov 2013 15:59:53 +0200
+Subject: [PATCH libmlx4 V4 2/2] Add RoCE IP based addressing support for UD QPs
+
+In order to implement IP based addressing for UD QPs, we need a way to
+resolve the addresses internally.
+When the provider detects an Ethernet link layer with IP based gids,
+it calls a helper function in libibverbs in order to resolve the
+Ethernet L2 params.
+
+
+Signed-off-by: Matan Barak <matanb@mellanox.com>
+Signed-off-by: Or Gerlitz <ogerlitz@mellanox.com>
+---
+ src/verbs.c |   26 ++++++++++++++++++++++----
+ 1 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/verbs.c b/src/verbs.c
+index 5c069ea..831e934 100644
+--- a/src/verbs.c
++++ b/src/verbs.c
+@@ -856,11 +856,29 @@ struct ibv_ah *mlx4_create_ah(struct ibv_pd *pd, struct ibv_ah_attr *attr)
+ 		memcpy(ah->av.dgid, attr->grh.dgid.raw, 16);
+ 	}
+ 
+-	if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET)
+-		if (mlx4_resolve_grh_to_l2(pd, ah, attr)) {
+-			free(ah);
+-			return NULL;
++	if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET) {
++		if (port_attr.port_cap_flags & IBV_PORT_IP_BASED_GIDS) {
++			uint16_t vid;
++
++			if (ibv_resolve_eth_l2_from_gid(pd->context, attr,
++							ah->mac, &vid)) {
++				free(ah);
++				return NULL;
++			}
++
++			if (vid <= 0xfff) {
++				ah->av.port_pd |= htonl(1 << 29);
++				ah->vlan = vid |
++					((attr->sl & 7) << 13);
++			}
++
++		} else {
++			if (mlx4_resolve_grh_to_l2(pd, ah, attr)) {
++				free(ah);
++				return NULL;
++			}
+ 		}
++	}
+ 
+ 	return &ah->ibv_ah;
+ }
+-- 
+1.7.1
+

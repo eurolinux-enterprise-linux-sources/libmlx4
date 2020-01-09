@@ -40,25 +40,6 @@
 
 #include "mlx4.h"
 
-#if !(defined(HAVE_IBV_DONTFORK_RANGE) && defined(HAVE_IBV_DOFORK_RANGE))
-
-/*
- * If libibverbs isn't exporting these functions, then there's no
- * point in doing it here, because the rest of libibverbs isn't going
- * to be fork-safe anyway.
- */
-static int ibv_dontfork_range(void *base, size_t size)
-{
-	return 0;
-}
-
-static int ibv_dofork_range(void *base, size_t size)
-{
-	return 0;
-}
-
-#endif /* HAVE_IBV_DONTFORK_RANGE && HAVE_IBV_DOFORK_RANGE */
-
 int mlx4_alloc_buf(struct mlx4_buf *buf, size_t size, int page_size)
 {
 	int ret;
@@ -78,6 +59,8 @@ int mlx4_alloc_buf(struct mlx4_buf *buf, size_t size, int page_size)
 
 void mlx4_free_buf(struct mlx4_buf *buf)
 {
-	ibv_dofork_range(buf->buf, buf->length);
-	munmap(buf->buf, buf->length);
+	if (buf->length) {
+		ibv_dofork_range(buf->buf, buf->length);
+		munmap(buf->buf, buf->length);
+	}
 }
