@@ -1,29 +1,22 @@
 Name: libmlx4
 Version: 1.0.6
-Release: 6%{?dist}
+Release: 7%{?dist}
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 Provides: libibverbs-driver.%{_arch}
 Group: System Environment/Libraries
 License: GPLv2 or BSD
 Url: https://www.openfabrics.org/
 Source: https://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
-Source1: libmlx4-modprobe.conf
-Source2: libmlx4-mlx4.conf
-Source3: libmlx4-setup.sh
-Source4: libmlx4-dracut-check.sh
-Source5: libmlx4-dracut-install.sh
-Source6: libmlx4-modprobe-2.conf
-Source7: libmlx4-dracut-installkernel
 Patch0: 0001-Add-ibv_query_port-caching-support.patch
 Patch1: 0002-Add-RoCE-IP-based-addressing-support-for-UD-QPs.patch
+Patch2: libmlx4-1.0.6-compiler-warnings.patch
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 Provides: libmlx4-devel = %{version}-%{release}
 BuildRequires: libibverbs-devel >= 1.1.8-2.el6
 BuildRequires: valgrind-devel
 ExcludeArch: s390 s390x
-Requires: dracut
+Requires: rdma >= 6.7_3.15-1.el6
 Obsoletes: libmlx4-rocee < 1.0.6
-%global dracutlibdir %{_datadir}/dracut
 
 %description
 libmlx4 provides a device-specific userspace driver for Mellanox
@@ -45,7 +38,7 @@ application, which may be useful for debugging.
 %setup -q
 %patch0 -p1
 %patch1 -p1
-
+%patch2 -p1
 %build
 %configure --with-valgrind
 make CFLAGS="$CFLAGS -fno-strict-aliasing" %{?_smp_mflags}
@@ -53,13 +46,6 @@ make CFLAGS="$CFLAGS -fno-strict-aliasing" %{?_smp_mflags}
 %install
 rm -rf %{buildroot}
 make DESTDIR=%{buildroot} install
-install -D -m 644 %{SOURCE1} %{buildroot}%{_sysconfdir}/modprobe.d/libmlx4.conf
-install -D -m 644 %{SOURCE2} %{buildroot}%{_sysconfdir}/rdma/mlx4.conf
-install -D -m 755 %{SOURCE3} %{buildroot}%{_libexecdir}/setup-mlx4.sh
-install -D -m 755 %{SOURCE4} %{buildroot}%{dracutlibdir}/modules.d/10mlx4/check
-install -D -m 755 %{SOURCE5} %{buildroot}%{dracutlibdir}/modules.d/10mlx4/install
-install -D -m 644 %{SOURCE6} %{buildroot}%{_sysconfdir}/modprobe.d/mlx4.conf
-install -D -m 755 %{SOURCE7} %{buildroot}%{dracutlibdir}/modules.d/10mlx4/installkernel
 # Remove unpackaged files
 rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 
@@ -67,11 +53,6 @@ rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 %defattr(-,root,root,-)
 %{_libdir}/libmlx4-rdmav2.so
 %{_sysconfdir}/libibverbs.d/mlx4.driver
-%{_sysconfdir}/modprobe.d/libmlx4.conf
-%config(noreplace) %{_sysconfdir}/rdma/mlx4.conf
-%config(noreplace) %{_sysconfdir}/modprobe.d/mlx4.conf
-%{_libexecdir}/setup-mlx4.sh
-%{dracutlibdir}/modules.d/10mlx4
 %doc AUTHORS COPYING README
 
 %files static
@@ -79,6 +60,12 @@ rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 %{_libdir}/libmlx4.a
 
 %changelog
+* Wed Mar 11 2015 Doug Ledford <dledford@redhat.com> - 1.0.6-7
+- Add compiler warnings patch
+- Rebuild against latest libibverbs and valgrind-devel
+- Move module init code to rdma package and require rdma package
+- Resolves: bz1142161, bz1163527
+
 * Wed Jul 30 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-6
 - Fix obsoletes tag for sub packages
 - Related: bz1053500
