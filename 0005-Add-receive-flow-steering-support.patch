@@ -1,0 +1,30 @@
+From: Or Gerlitz <ogerlitz@mellanox.com>
+To: roland@kernel.org
+Cc: linux-rdma@vger.kernel.org, monis@mellanox.com, matanb@mellanox.com,
+        amirv@mellanox.com, dledford@redhat.com,
+        Or Gerlitz <ogerlitz@mellanox.com>
+Subject: [PATCH libmlx4] Add receive flow steering support
+Date: Thu,  6 Feb 2014 14:21:36 +0200
+
+From: Matan Barak <matanb@mellanox.com>
+
+The implementation uses the default commands from libibverbs.
+
+Signed-off-by: Matan Barak <matanb@mellanox.com>
+Signed-off-by: Or Gerlitz <ogerlitz@mellanox.com>
+---
+ src/mlx4.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
+
+diff -up libmlx4-1.0.5/src/mlx4.c.orig libmlx4-1.0.5/src/mlx4.c
+--- libmlx4-1.0.5/src/mlx4.c.orig	2014-02-28 23:10:58.808223842 -0500
++++ libmlx4-1.0.5/src/mlx4.c	2014-02-28 23:11:31.614894224 -0500
+@@ -214,6 +214,8 @@ static int mlx4_init_context(struct verb
+ 	verbs_set_ctx_op(verbs_ctx, drv_ibv_create_ah_ex, mlx4_create_ah_ex);
+ 	verbs_set_ctx_op(verbs_ctx, drv_query_port_ex,
+ 			 mlx4_query_port_ex);
++	verbs_set_ctx_op(verbs_ctx, drv_ibv_create_flow, ibv_cmd_create_flow);
++	verbs_set_ctx_op(verbs_ctx, drv_ibv_create_flow, ibv_cmd_create_flow);
+ 
+ 	return 0;
+ 
