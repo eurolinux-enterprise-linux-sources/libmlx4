@@ -1,6 +1,6 @@
 Name: libmlx4
 Version: 1.0.6
-Release: 3%{?dist}
+Release: 5%{?dist}
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 Provides: libibverbs-driver.%{_arch}
 Group: System Environment/Libraries
@@ -10,12 +10,14 @@ Source: https://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
 Patch0: libmlx4-1.0.6-compiler-warnings.patch
 Patch1: 0001-Add-ibv_query_port-caching-support.patch
 Patch2: 0002-Add-RoCE-IP-based-addressing-support-for-UD-QPs.patch
+Patch3: 0002-libmlx4-add-s390x-platform-support.patch
+Patch4: libmlx4-checksum.mbox
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires: libibverbs-devel > 1.1.7
-%ifnarch ia64 %{sparc} %{arm}
+BuildRequires: libibverbs-devel >= 1.1.8-7.el7, autoconf, automake, libtool
+%ifnarch ia64 %{sparc} s390x
 BuildRequires: valgrind-devel
 %endif
-ExcludeArch: s390 s390x
+ExcludeArch: s390
 Requires: rdma >= 7.1_3.17-4.el7
 %global dracutlibdir %{_prefix}/lib/dracut
 
@@ -37,9 +39,16 @@ application, which may be useful for debugging.
 %patch0 -p1 -b .warnings
 %patch1 -p1
 %patch2 -p1
+%patch3 -p1
+%patch4 -p1 -b .xsum
+aclocal -I config
+libtoolize --force --copy
+autoheader
+automake --foreign --add-missing --copy
+autoconf
 
 %build
-%ifnarch ia64 %{sparc} %{arm}
+%ifnarch ia64 %{sparc} s390x
 %configure --with-valgrind
 %else
 %configure
@@ -63,6 +72,14 @@ rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 %{_libdir}/libmlx4.a
 
 %changelog
+* Wed Sep 23 2015 Doug Ledford <dledford@redhat.com> - 1.0.6-5
+- Add checksum offload support
+- Related: bz1195888
+
+* Thu Jul 16 2015 Doug Ledford <dledford@redhat.com> - 1.0.6-4
+- Add s390x support
+- Resolves: bz1182179
+
 * Tue Dec 23 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-3
 - Drop the module init stuff and move it to the rdma package
 - Make sure we require the rdma package, and that we conflict
