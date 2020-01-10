@@ -1,0 +1,18 @@
+diff -up libmlx4-1.0.6/src/qp.c.warnings libmlx4-1.0.6/src/qp.c
+--- libmlx4-1.0.6/src/qp.c.warnings	2014-10-17 10:15:38.603476949 -0400
++++ libmlx4-1.0.6/src/qp.c	2014-10-17 10:26:08.919197909 -0400
+@@ -193,12 +193,12 @@ int mlx4_post_send(struct ibv_qp *ibqp,
+ 	struct mlx4_context *ctx;
+ 	struct mlx4_qp *qp = to_mqp(ibqp);
+ 	void *wqe;
+-	struct mlx4_wqe_ctrl_seg *ctrl;
++	struct mlx4_wqe_ctrl_seg *ctrl = NULL;
+ 	int ind;
+ 	int nreq;
+ 	int inl = 0;
+ 	int ret = 0;
+-	int size;
++	int size = 0;
+ 	int i;
+ 
+ 	pthread_spin_lock(&qp->sq.lock);
