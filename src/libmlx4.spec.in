@@ -1,12 +1,12 @@
 Name: libmlx4
-Version: 1.0.6
+Version: 1.2.1
 Release: 1%{?dist}
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 
 Group: System Environment/Libraries
 License: GPLv2 or BSD
 Url: http://openfabrics.org/
-Source: http://openfabrics.org/downloads/mlx4/libmlx4-1.0.6.tar.gz
+Source: http://openfabrics.org/downloads/mlx4/libmlx4-%{version}.tar.gz
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 BuildRequires: libibverbs-devel >= 1.1.8
@@ -26,7 +26,7 @@ Static version of libmlx4 that may be linked directly to an
 application, which may be useful for debugging.
 
 %prep
-%setup -q -n %{name}-@VERSION@
+%setup -q -n %{name}-%{version}
 
 %build
 %configure
@@ -52,6 +52,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/libmlx4.a
 
 %changelog
+* Wed Jul 20 2016 Yishai Hadas <yishaih@mellanox.com> - 1.2.1-1
+- New upstream release
+
 * Mon May  5 2014 Roland Dreier <roland@digitalvampire.org> - 1.0.6-1
 - New upstream release
 

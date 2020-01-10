@@ -1,24 +1,19 @@
 Name: libmlx4
-Version: 1.0.6
-Release: 5%{?dist}
+Version: 1.2.1
+Release: 1%{?dist}
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 Provides: libibverbs-driver.%{_arch}
 Group: System Environment/Libraries
 License: GPLv2 or BSD
 Url: https://www.openfabrics.org/
 Source: https://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
-Patch0: libmlx4-1.0.6-compiler-warnings.patch
-Patch1: 0001-Add-ibv_query_port-caching-support.patch
-Patch2: 0002-Add-RoCE-IP-based-addressing-support-for-UD-QPs.patch
-Patch3: 0002-libmlx4-add-s390x-platform-support.patch
-Patch4: libmlx4-checksum.mbox
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires: libibverbs-devel >= 1.1.8-7.el7, autoconf, automake, libtool
+BuildRequires: libibverbs-devel >= 1.2.1, autoconf, automake, libtool
 %ifnarch ia64 %{sparc} s390x
 BuildRequires: valgrind-devel
 %endif
 ExcludeArch: s390
-Requires: rdma >= 7.1_3.17-4.el7
+Requires: rdma >= 7.3_4.7_rc2-3.el7
 %global dracutlibdir %{_prefix}/lib/dracut
 
 %description
@@ -36,16 +31,6 @@ application, which may be useful for debugging.
 
 %prep
 %setup -q
-%patch0 -p1 -b .warnings
-%patch1 -p1
-%patch2 -p1
-%patch3 -p1
-%patch4 -p1 -b .xsum
-aclocal -I config
-libtoolize --force --copy
-autoheader
-automake --foreign --add-missing --copy
-autoconf
 
 %build
 %ifnarch ia64 %{sparc} s390x
@@ -72,6 +57,10 @@ rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 %{_libdir}/libmlx4.a
 
 %changelog
+* Wed Jul 20 2016 Jarod Wilson <jarod@redhat.com> - 1.2.1-1
+- Update to upstream release v1.2.1
+- Resolves: bz1298687
+
 * Wed Sep 23 2015 Doug Ledford <dledford@redhat.com> - 1.0.6-5
 - Add checksum offload support
 - Related: bz1195888

@@ -35,10 +35,17 @@
 #define MLX4_H
 
 #include <stddef.h>
+#include <netinet/in.h>
 
 #include <infiniband/driver.h>
 #include <infiniband/arch.h>
 #include <infiniband/verbs.h>
+
+#define MLX4_PORTS_NUM 2
+
+#ifndef uninitialized_var
+#define uninitialized_var(x) x = x
+#endif
 
 #ifdef HAVE_VALGRIND_MEMCHECK_H
 
@@ -74,6 +81,8 @@
 #define wc_wmb() asm volatile("sfence" ::: "memory")
 #elif defined(__ia64__)
 #define wc_wmb() asm volatile("fwb" ::: "memory")
+#elif defined(__s390x__)
+#define wc_wmb { asm volatile("" : : : "memory") }
 #else
 #define wc_wmb() wmb()
 #endif
@@ -87,6 +96,14 @@
 enum {
 	MLX4_STAT_RATE_OFFSET		= 5
 };
+
+#ifndef likely
+#ifdef __GNUC__
+#define likely(x)       __builtin_expect(!!(x),1)
+#else
+#define likely(x)      (x)
+#endif
+#endif
 
 enum {
 	MLX4_QP_TABLE_BITS		= 8,
@@ -184,11 +201,18 @@ struct mlx4_context {
 	int				num_qps;
 	int				qp_table_shift;
 	int				qp_table_mask;
+	int				max_qp_wr;
+	int				max_sge;
 
 	struct mlx4_db_page	       *db_list[MLX4_NUM_DB_TYPE];
 	pthread_mutex_t			db_list_mutex;
 	int				cqe_size;
 	struct mlx4_xsrq_table		xsrq_table;
+	struct {
+		uint8_t                 valid;
+		uint8_t                 link_layer;
+		enum ibv_port_cap_flags caps;
+	} port_query_cache[MLX4_PORTS_NUM];
 };
 
 struct mlx4_buf {
@@ -257,6 +281,7 @@ struct mlx4_qp {
 	struct mlx4_wq			rq;
 
 	uint8_t				link_layer;
+	uint32_t			qp_cap_cache;
 };
 
 struct mlx4_av {
@@ -279,6 +304,22 @@ struct mlx4_ah {
 	uint8_t				mac[6];
 };
 
+enum {
+	MLX4_CSUM_SUPPORT_UD_OVER_IB	= (1 <<  0),
+	MLX4_CSUM_SUPPORT_RAW_OVER_ETH	= (1 <<  1),
+	/* Only report rx checksum when the validation is valid */
+	MLX4_RX_CSUM_VALID		= (1 <<  16),
+};
+
+enum mlx4_cqe_status {
+	MLX4_CQE_STATUS_TCP_UDP_CSUM_OK	= (1 <<  2),
+	MLX4_CQE_STATUS_IPV4_PKT	= (1 << 22),
+	MLX4_CQE_STATUS_IP_HDR_CSUM_OK	= (1 << 28),
+	MLX4_CQE_STATUS_IPV4_CSUM_OK	= MLX4_CQE_STATUS_IPV4_PKT |
+					MLX4_CQE_STATUS_IP_HDR_CSUM_OK |
+					MLX4_CQE_STATUS_TCP_UDP_CSUM_OK
+};
+
 struct mlx4_cqe {
 	uint32_t	vlan_my_qpn;
 	uint32_t	immed_rss_invalid;
@@ -286,7 +327,7 @@ struct mlx4_cqe {
 	uint8_t		sl_vid;
 	uint8_t		reserved1;
 	uint16_t	rlid;
-	uint32_t	reserved2;
+	uint32_t	status;
 	uint32_t	byte_cnt;
 	uint16_t	wqe_index;
 	uint16_t	checksum;
@@ -344,6 +385,11 @@ static inline struct mlx4_ah *to_mah(struct ibv_ah *ibah)
 	return to_mxxx(ah, ah);
 }
 
+static inline void mlx4_update_cons_index(struct mlx4_cq *cq)
+{
+	*cq->set_ci_db = htonl(cq->cons_index & 0xffffff);
+}
+
 int mlx4_alloc_buf(struct mlx4_buf *buf, size_t size, int page_size);
 void mlx4_free_buf(struct mlx4_buf *buf);
 
@@ -363,7 +409,14 @@ int mlx4_close_xrcd(struct ibv_xrcd *xrcd);
 
 struct ibv_mr *mlx4_reg_mr(struct ibv_pd *pd, void *addr,
 			    size_t length, int access);
+int mlx4_rereg_mr(struct ibv_mr *mr, int flags, struct ibv_pd *pd,
+		  void *addr, size_t length, int access);
 int mlx4_dereg_mr(struct ibv_mr *mr);
+
+struct ibv_mw *mlx4_alloc_mw(struct ibv_pd *pd, enum ibv_mw_type type);
+int mlx4_dealloc_mw(struct ibv_mw *mw);
+int mlx4_bind_mw(struct ibv_qp *qp, struct ibv_mw *mw,
+		 struct ibv_mw_bind *mw_bind);
 
 struct ibv_cq *mlx4_create_cq(struct ibv_context *context, int cqe,
 			       struct ibv_comp_channel *channel,

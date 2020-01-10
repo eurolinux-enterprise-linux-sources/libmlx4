@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.67])
-AC_INIT([libmlx4],[1.0.6],[linux-rdma@vger.kernel.org])
+AC_INIT([libmlx4],[1.2.1],[linux-rdma@vger.kernel.org])
 AC_CONFIG_SRCDIR([src/mlx4.h])
 AC_CONFIG_AUX_DIR(config)
 AC_CONFIG_HEADER(config.h)
@@ -40,6 +40,10 @@ AC_CHECK_HEADER(valgrind/memcheck.h,
     [if test $want_valgrind = yes; then
         AC_MSG_ERROR([Valgrind memcheck support requested, but <valgrind/memcheck.h> not found.])
     fi])
+
+AC_CHECK_MEMBER([struct verbs_context.ibv_create_flow], [],
+    [AC_MSG_ERROR([libmlx4 requires libibverbs >= 1.2.0])],
+    [[#include <infiniband/verbs.h>]])
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

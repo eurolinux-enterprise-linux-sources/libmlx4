@@ -116,11 +116,6 @@ static struct mlx4_cqe *next_cqe_sw(struct mlx4_cq *cq)
 	return get_sw_cqe(cq, cq->cons_index);
 }
 
-static void update_cons_index(struct mlx4_cq *cq)
-{
-	*cq->set_ci_db = htonl(cq->cons_index & 0xffffff);
-}
-
 static void mlx4_handle_error_cqe(struct mlx4_err_cqe *cqe, struct ibv_wc *wc)
 {
 	if (cqe->syndrome == MLX4_CQE_SYNDROME_LOCAL_QP_OP_ERR)
@@ -288,8 +283,14 @@ static int mlx4_poll_one(struct mlx4_cq *cq,
 			wc->opcode    = IBV_WC_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
+		case MLX4_OPCODE_LOCAL_INVAL:
+			wc->opcode    = IBV_WC_LOCAL_INV;
+			break;
 		case MLX4_OPCODE_BIND_MW:
 			wc->opcode    = IBV_WC_BIND_MW;
+			break;
+		case MLX4_OPCODE_SEND_INVAL:
+			wc->opcode    = IBV_WC_SEND;
 			break;
 		default:
 			/* assume it's a send completion */
@@ -304,6 +305,11 @@ static int mlx4_poll_one(struct mlx4_cq *cq,
 			wc->opcode   = IBV_WC_RECV_RDMA_WITH_IMM;
 			wc->wc_flags = IBV_WC_WITH_IMM;
 			wc->imm_data = cqe->immed_rss_invalid;
+			break;
+		case MLX4_RECV_OPCODE_SEND_INVAL:
+			wc->opcode   = IBV_WC_RECV;
+			wc->wc_flags |= IBV_WC_WITH_INV;
+			wc->imm_data = ntohl(cqe->immed_rss_invalid);
 			break;
 		case MLX4_RECV_OPCODE_SEND:
 			wc->opcode   = IBV_WC_RECV;
@@ -329,6 +335,12 @@ static int mlx4_poll_one(struct mlx4_cq *cq,
 			wc->sl	   = ntohs(cqe->sl_vid) >> 13;
 		else
 			wc->sl	   = ntohs(cqe->sl_vid) >> 12;
+
+		if ((*cur_qp) && ((*cur_qp)->qp_cap_cache & MLX4_RX_CSUM_VALID)) {
+			wc->wc_flags |= ((cqe->status & htonl(MLX4_CQE_STATUS_IPV4_CSUM_OK)) ==
+					 htonl(MLX4_CQE_STATUS_IPV4_CSUM_OK)) <<
+					IBV_WC_IP_CSUM_OK_SHIFT;
+		}
 	}
 
 	return CQ_OK;
@@ -350,7 +362,7 @@ int mlx4_poll_cq(struct ibv_cq *ibcq, int ne, struct ibv_wc *wc)
 	}
 
 	if (npolled || err == CQ_POLL_ERR)
-		update_cons_index(cq);
+		mlx4_update_cons_index(cq);
 
 	pthread_spin_unlock(&cq->lock);
 
@@ -442,7 +454,7 @@ void __mlx4_cq_clean(struct mlx4_cq *cq, uint32_t qpn, struct mlx4_srq *srq)
 		 * updating consumer index.
 		 */
 		wmb();
-		update_cons_index(cq);
+		mlx4_update_cons_index(cq);
 	}
 }
 

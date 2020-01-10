@@ -38,9 +38,17 @@ enum {
 };
 
 enum {
-	MLX4_WQE_CTRL_FENCE	= 1 << 6,
-	MLX4_WQE_CTRL_CQ_UPDATE	= 3 << 2,
-	MLX4_WQE_CTRL_SOLICIT	= 1 << 1,
+	MLX4_WQE_CTRL_SOLICIT		= 1 << 1,
+	MLX4_WQE_CTRL_CQ_UPDATE		= 3 << 2,
+	MLX4_WQE_CTRL_IP_HDR_CSUM	= 1 << 4,
+	MLX4_WQE_CTRL_TCP_UDP_CSUM	= 1 << 5,
+	MLX4_WQE_CTRL_FENCE		= 1 << 6,
+	MLX4_WQE_CTRL_STRONG_ORDER	= 1 << 7
+};
+
+enum {
+	MLX4_WQE_BIND_TYPE_2		= (1<<31),
+	MLX4_WQE_BIND_ZERO_BASED	= (1<<30),
 };
 
 enum {
@@ -54,8 +62,13 @@ enum {
 
 struct mlx4_wqe_ctrl_seg {
 	uint32_t		owner_opcode;
-	uint8_t			reserved[3];
-	uint8_t			fence_size;
+	union {
+		struct {
+			uint8_t			reserved[3];
+			uint8_t			fence_size;
+		};
+		uint32_t	bf_qpn;
+	};
 	/*
 	 * High 24 bits are SRC remote buffer; low 8 bits are flags:
 	 * [7]   SO (strong ordering)
@@ -96,6 +109,19 @@ struct mlx4_wqe_srq_next_seg {
 	uint16_t		reserved1;
 	uint16_t		next_wqe_index;
 	uint32_t		reserved2[3];
+};
+
+struct mlx4_wqe_local_inval_seg {
+	uint64_t		reserved1;
+	uint32_t		mem_key;
+	uint32_t		reserved2;
+	uint64_t		reserved3[2];
+};
+
+enum {
+	MLX4_WQE_MW_REMOTE_READ   = 1 << 29,
+	MLX4_WQE_MW_REMOTE_WRITE  = 1 << 30,
+	MLX4_WQE_MW_ATOMIC        = 1 << 31
 };
 
 struct mlx4_wqe_raddr_seg {

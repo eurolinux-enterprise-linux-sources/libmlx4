@@ -92,7 +92,11 @@ static struct ibv_context_ops mlx4_ctx_ops = {
 	.alloc_pd      = mlx4_alloc_pd,
 	.dealloc_pd    = mlx4_free_pd,
 	.reg_mr	       = mlx4_reg_mr,
+	.rereg_mr      = mlx4_rereg_mr,
 	.dereg_mr      = mlx4_dereg_mr,
+	.alloc_mw      = mlx4_alloc_mw,
+	.dealloc_mw    = mlx4_dealloc_mw,
+	.bind_mw       = mlx4_bind_mw,
 	.create_cq     = mlx4_create_cq,
 	.poll_cq       = mlx4_poll_cq,
 	.req_notify_cq = mlx4_arm_cq,
@@ -127,6 +131,7 @@ static int mlx4_init_context(struct verbs_device *v_device,
 	__u16				bf_reg_size;
 	struct mlx4_device              *dev = to_mdev(&v_device->device);
 	struct verbs_context *verbs_ctx = verbs_get_ctx(ibv_ctx);
+	struct ibv_device_attr		dev_attrs;
 
 	/* memory footprint of mlx4_context and verbs_context share
 	* struct ibv_context.
@@ -157,6 +162,8 @@ static int mlx4_init_context(struct verbs_device *v_device,
 
 	context->qp_table_shift = ffs(context->num_qps) - 1 - MLX4_QP_TABLE_BITS;
 	context->qp_table_mask	= (1 << context->qp_table_shift) - 1;
+	for (i = 0; i < MLX4_PORTS_NUM; ++i)
+		context->port_query_cache[i].valid = 0;
 
 	pthread_mutex_init(&context->qp_table_mutex, NULL);
 	for (i = 0; i < MLX4_QP_TABLE_SIZE; ++i)
@@ -195,6 +202,12 @@ static int mlx4_init_context(struct verbs_device *v_device,
 	pthread_spin_init(&context->uar_lock, PTHREAD_PROCESS_PRIVATE);
 	ibv_ctx->ops = mlx4_ctx_ops;
 
+	memset(&dev_attrs, 0, sizeof(dev_attrs));
+	if (!mlx4_query_device(ibv_ctx, &dev_attrs)) {
+		context->max_qp_wr = dev_attrs.max_qp_wr;
+		context->max_sge = dev_attrs.max_sge;
+	}
+
 	verbs_ctx->has_comp_mask = VERBS_CONTEXT_XRCD | VERBS_CONTEXT_SRQ |
 					VERBS_CONTEXT_QP;
 	verbs_set_ctx_op(verbs_ctx, close_xrcd, mlx4_close_xrcd);
@@ -203,8 +216,8 @@ static int mlx4_init_context(struct verbs_device *v_device,
 	verbs_set_ctx_op(verbs_ctx, get_srq_num, verbs_get_srq_num);
 	verbs_set_ctx_op(verbs_ctx, create_qp_ex, mlx4_create_qp_ex);
 	verbs_set_ctx_op(verbs_ctx, open_qp, mlx4_open_qp);
-	verbs_set_ctx_op(verbs_ctx, drv_ibv_create_flow, ibv_cmd_create_flow);
-	verbs_set_ctx_op(verbs_ctx, drv_ibv_destroy_flow, ibv_cmd_destroy_flow);
+	verbs_set_ctx_op(verbs_ctx, ibv_create_flow, ibv_cmd_create_flow);
+	verbs_set_ctx_op(verbs_ctx, ibv_destroy_flow, ibv_cmd_destroy_flow);
 
 	return 0;
 
