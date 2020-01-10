@@ -1,0 +1,116 @@
+From 58d17b16bf991400f856d047d7568618e36eb9d3 Mon Sep 17 00:00:00 2001
+From: Matan Barak <matanb@mellanox.com>
+Date: Sun, 4 Aug 2013 12:01:55 +0300
+Subject: [PATCH libmlx4 V4 1/2] Add ibv_query_port caching support
+
+Return fields according to the port cache rather than calling the kernel.
+
+
+Signed-off-by: Matan Barak <matanb@mellanox.com>
+Signed-off-by: Or Gerlitz <ogerlitz@mellanox.com>
+---
+ src/mlx4.c  |    2 ++
+ src/mlx4.h  |    7 +++++++
+ src/verbs.c |   40 ++++++++++++++++++++++++++++++++++++++--
+ 3 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/src/mlx4.c b/src/mlx4.c
+index 1ee0338..ee57a84 100644
+--- a/src/mlx4.c
++++ b/src/mlx4.c
+@@ -157,6 +157,8 @@ static int mlx4_init_context(struct verbs_device *v_device,
+ 
+ 	context->qp_table_shift = ffs(context->num_qps) - 1 - MLX4_QP_TABLE_BITS;
+ 	context->qp_table_mask	= (1 << context->qp_table_shift) - 1;
++	for (i = 0; i < MLX4_PORTS_NUM; ++i)
++		context->port_query_cache[i].valid = 0;
+ 
+ 	pthread_mutex_init(&context->qp_table_mutex, NULL);
+ 	for (i = 0; i < MLX4_QP_TABLE_SIZE; ++i)
+diff --git a/src/mlx4.h b/src/mlx4.h
+index d71450f..05ec70c 100644
+--- a/src/mlx4.h
++++ b/src/mlx4.h
+@@ -40,6 +40,8 @@
+ #include <infiniband/arch.h>
+ #include <infiniband/verbs.h>
+ 
++#define MLX4_PORTS_NUM 2
++
+ #ifdef HAVE_VALGRIND_MEMCHECK_H
+ 
+ #  include <valgrind/memcheck.h>
+@@ -189,6 +191,11 @@ struct mlx4_context {
+ 	pthread_mutex_t			db_list_mutex;
+ 	int				cqe_size;
+ 	struct mlx4_xsrq_table		xsrq_table;
++	struct {
++		uint8_t                 valid;
++		uint8_t                 link_layer;
++		enum ibv_port_cap_flags caps;
++	} port_query_cache[MLX4_PORTS_NUM];
+ };
+ 
+ struct mlx4_buf {
+diff --git a/src/verbs.c b/src/verbs.c
+index 623d576..5c069ea 100644
+--- a/src/verbs.c
++++ b/src/verbs.c
+@@ -70,8 +70,44 @@ int mlx4_query_port(struct ibv_context *context, uint8_t port,
+ 		     struct ibv_port_attr *attr)
+ {
+ 	struct ibv_query_port cmd;
++	int err;
++
++	err = ibv_cmd_query_port(context, port, attr, &cmd, sizeof(cmd));
++	if (!err && port <= MLX4_PORTS_NUM && port > 0) {
++		struct mlx4_context *mctx = to_mctx(context);
++		if (!mctx->port_query_cache[port - 1].valid) {
++			mctx->port_query_cache[port - 1].link_layer =
++				attr->link_layer;
++			mctx->port_query_cache[port - 1].caps =
++				attr->port_cap_flags;
++			mctx->port_query_cache[port - 1].valid = 1;
++		}
++	}
++
++	return err;
++}
++
++/* Only the fields in the port cache will be valid */
++static int query_port_cache(struct ibv_context *context, uint8_t port_num,
++			    struct ibv_port_attr *port_attr)
++{
++	struct mlx4_context *mctx = to_mctx(context);
++	if (port_num <= 0 || port_num > MLX4_PORTS_NUM)
++		return -EINVAL;
++	if (mctx->port_query_cache[port_num - 1].valid) {
++		port_attr->link_layer =
++			mctx->
++			port_query_cache[port_num - 1].
++			link_layer;
++		port_attr->port_cap_flags =
++			mctx->
++			port_query_cache[port_num - 1].
++			caps;
++		return 0;
++	}
++	return mlx4_query_port(context, port_num,
++			       (struct ibv_port_attr *)port_attr);
+ 
+-	return ibv_cmd_query_port(context, port, attr, &cmd, sizeof cmd);
+ }
+ 
+ struct ibv_pd *mlx4_alloc_pd(struct ibv_context *context)
+@@ -788,7 +824,7 @@ struct ibv_ah *mlx4_create_ah(struct ibv_pd *pd, struct ibv_ah_attr *attr)
+ 	struct mlx4_ah *ah;
+ 	struct ibv_port_attr port_attr;
+ 
+-	if (ibv_query_port(pd->context, attr->port_num, &port_attr))
++	if (query_port_cache(pd->context, attr->port_num, &port_attr))
+ 		return NULL;
+ 
+ 	ah = malloc(sizeof *ah);
+-- 
+1.7.1
+

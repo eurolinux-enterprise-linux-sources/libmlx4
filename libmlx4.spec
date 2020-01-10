@@ -1,24 +1,21 @@
 Name: libmlx4
-Version: 1.0.5
-Release: 7%{?dist}
+Version: 1.0.6
+Release: 1%{?dist}
 Summary: Mellanox ConnectX InfiniBand HCA Userspace Driver
 Provides: libibverbs-driver.%{_arch}
 Group: System Environment/Libraries
 License: GPLv2 or BSD
-Url: http://www.openfabrics.org/
-Source: http://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
+Url: https://www.openfabrics.org/
+Source: https://www.openfabrics.org/downloads/mlx4/%{name}-%{version}.tar.gz
 Source1: libmlx4-modprobe.conf
 Source2: libmlx4-mlx4.conf
 Source3: libmlx4-setup.sh
 Source4: libmlx4-dracut-module-setup.sh
 Source5: libmlx4-modprobe-2.conf
-Patch1: 0001-Infra-structure-changes-to-support-verbs-extensions.patch
-Patch2: 0002-Add-support-for-XRC-QPs.patch
-Patch3: 0003-Add-RoCE-IP-based-addressing-support-for-UD-QPs.patch
-Patch4: 0004-Add-ibv_query_port_ex-support.patch
-Patch5: 0005-Add-receive-flow-steering-support.patch
+Patch1: 0001-Add-ibv_query_port-caching-support.patch
+Patch2: 0002-Add-RoCE-IP-based-addressing-support-for-UD-QPs.patch
 BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
-BuildRequires: libibverbs-devel >= 1.1.7-5
+BuildRequires: libibverbs-devel > 1.1.7
 %ifnarch ia64 %{sparc} %{arm}
 BuildRequires: valgrind-devel
 %endif
@@ -43,9 +40,6 @@ application, which may be useful for debugging.
 %setup -q
 %patch1 -p1
 %patch2 -p1
-%patch3 -p1
-%patch4 -p1
-%patch5 -p1
 
 %build
 %ifnarch ia64 %{sparc} %{arm}
@@ -83,6 +77,12 @@ rm -f %{buildroot}%{_libdir}/libmlx4.{la,so}
 %{_libdir}/libmlx4.a
 
 %changelog
+* Tue Jul 22 2014 Doug Ledford <dledford@redhat.com> - 1.0.6-1
+- Update to latest upstream release
+- Update RoCE IP GID support
+- Fix flow steering support
+- Related: bz1122333
+
 * Fri Feb 28 2014 Doug Ledford <dledford@redhat.com> - 1.0.5-7
 - Fix dracut module support to work with rdma dracut module
 - Add support for IP based RoCE addressing and UD QPs
